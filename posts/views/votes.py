@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets, status, permissions, serializers
 from ..models.vote import Vote
+from ..models.post import Post
 from ..serializers.vote import VoteSerializer
 from ..permissions import HasSelfVotedOrReadOnly
 

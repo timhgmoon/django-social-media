@@ -1,25 +1,80 @@
-from django.shortcuts import get_object_or_404, render
-from rest_framework import viewsets, status
-from django.contrib.auth.models import User
 from rest_framework.response import Response
+from rest_framework import status, generics
+from rest_framework.authtoken.models import Token
 from .serializers import UserSerializer
+from .models import User
+from django.contrib.auth import authenticate, login, logout
 
-# Create your views here.
-class UserViewSet(viewsets.ViewSet):
-  def list(self, request):
-    queryset = User.objects.all()
-    serializer = UserSerializer(queryset, many=True)
-    return Response(serializer.data)
+class SignUp(generics.CreateAPIView):
+    # Override the authentication/permissions classes so this endpoint
+    # is not authenticated & we don't need any permissions to access it.
+    authentication_classes = ()
+    permission_classes = ()
+    serializer_class = UserSerializer
     
-  def create(self, request):
-    serializer = UserSerializer(data=request.data)
-    if serializer.is_valid():
-      serializer.save()
-      return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        # Create the user using the UserSerializer 
+        created_user = UserSerializer(data=request.data)
+        # Check user is valid
+        if created_user.is_valid():
+            # Save the user and send back a response!
+            created_user.save()
+            return Response({ 'user': created_user.data }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(created_user.errors, status=status.HTTP_400_BAD_REQUEST)
 
-  def retrieve(self, request, pk):
-    queryset = User.objects.all()
-    user = get_object_or_404(User, pk=pk)
-    serializer = UserSerializer(user)
-    return Response(serializer.data)
+class SignIn(generics.CreateAPIView):
+    # Override the authentication/permissions classes so this endpoint
+    # is not authenticated & we don't need any permissions to access it.
+    authentication_classes = ()
+    permission_classes = ()
+    serializer_class = UserSerializer
+
+    def post(self, request):
+        data = request.data
+        # use django authenticate to verify password and email match
+        user = authenticate(request, email=data['email'], password=data['password'])
+        # Is our user is successfully authenticated...
+        if user is not None:  
+            login(request, user)
+            # use django generate a token and save it to user
+            Token.objects.filter(user=user).delete()
+            token = Token.objects.create(user=user)
+            user.token = token.key
+            user.save()
+            # return the user with their id, email and token
+            return Response({
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'token': token.key
+                }
+            })
+        else:
+            return Response({ 'msg': 'The username and/or password is incorrect.' }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+class SignOut(generics.DestroyAPIView):
+  def delete(self, request):
+    user = request.user
+
+    Token.objects.filter(user=user).delete()
+    user.token = None
+    user.save()
+    #Logout will remove all session
+    logout(request)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ChangePassword(generics.UpdateAPIView):
+  def patch(self, request):
+    user = request.user
+    old_pw = request.data['passwords']['old']
+    new_pw = request.data['passwords']['new']
+   
+    #this is included with django base user model
+    if not user.check_password(old_pw):
+      return Response({'msg':'Wrong Password'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    #set_password will also hash the password
+    user.set_password(new_pw)
+    user.save()
+    return Response(status=status.HTTP_204_NO_CONTENT)

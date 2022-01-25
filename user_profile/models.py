@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 # Create your models here.
 class UserProfile(models.Model):
@@ -9,7 +9,7 @@ class UserProfile(models.Model):
     ('other', 'Others')
   )
 
-  owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile_data')
+  owner = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='profile_data')
   gender = models.CharField(
     max_length = 20,
     choices = options,
@@ -24,4 +24,4 @@ class UserProfile(models.Model):
   location = models.CharField(max_length=100, null=True, blank=True)
   about = models.CharField(max_length=800, blank=True, null=True)
   profile_image=models.ImageField(upload_to="profile_image", null=True, blank=True)
-  friends = models.ManyToManyField(User, related_name='friends', blank=True)
+  # friends = models.ManyToManyField(User, related_name='friends', blank=True)
