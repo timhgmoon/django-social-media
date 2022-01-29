@@ -7,6 +7,7 @@ from .vote import VoteSerializer
 class PostSerializer(serializers.ModelSerializer):
   comments = CommentSerializer(many=True, read_only=True)
   votes = VoteSerializer(many=True, read_only=True)
+  owner = serializers.CharField(source='owner.email', read_only=True)
   class Meta:
     model = Post
-    fields = ('id', 'content', 'post_image', 'category', 'post_date', 'comments', 'votes')
+    fields = ('id', 'owner', 'content', 'post_image', 'category', 'post_date', 'comments', 'votes')
